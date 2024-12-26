@@ -1,14 +1,11 @@
 # PMAE
----
 This is the official implementation for the AAAI'25 paper: To Predict or Not To Predict? Proportionally Masked Autoencoders for Tabular Data Imputation.
 
 # Prequisites
----
 - python 3.9
 - pytorch 2.2.1
 
 # Getting started
----
 1. Clone the repository
 2. Install dependencies
    ```
@@ -20,7 +17,7 @@ This is the official implementation for the AAAI'25 paper: To Predict or Not To 
    - Check Run PMAE.ipynb
   
 
-Citation
+# Citation
 ---
 ```
 ```
