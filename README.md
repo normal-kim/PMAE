@@ -14,7 +14,7 @@ This is the official implementation for the AAAI'25 paper: To Predict or Not To 
    pip install -r requirements.txt
    ```
 3. Run PMAE
-   - Check Run PMAE.ipynb
+   - Check the notebook file: Run PMAE.ipynb
   
 
 # Citation
