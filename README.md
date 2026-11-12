@@ -1,7 +1,7 @@
 # PMAE
 
 Official code for **To Predict or Not to Predict? Proportionally Masked Autoencoders for Tabular Data Imputation** (AAAI 2025).
-Jungkyu Kim, Kibok Lee, Taeyoung Park. [[Paper]](https://ojs.aaai.org/index.php/AAAI/article/view/33967) [[arXiv]](https://arxiv.org/abs/2412.19152)
+Jungkyu Kim, Kibok Lee, Taeyoung Park. [[Paper]](https://ojs.aaai.org/index.php/AAAI/article/view/33967) [[arXiv]](https://arxiv.org/abs/2412.19152) [[PyPI]](https://pypi.org/project/pmae/)
 
 ## 💡 Why PMAE
 
