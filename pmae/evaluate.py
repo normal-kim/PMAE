@@ -1,8 +1,8 @@
 """Step 6: imputation metrics on the missing entries, and Utility.
 
 Imputation (on the entries the pattern made missing):
-- R2 of each numerical column (1 - SSE / SST, clipped at 0), on a quantile-normal scale fit on the complete train
-  split (used by the evaluator only).
+- R2 of each numerical column (1 - SSE / SST, clipped at 0; 0 when its true missing values are all equal), on a
+  quantile-normal scale fit on the complete train split (used by the evaluator only).
 - Accuracy of each categorical column (merged categories as the encoder defines them).
 - Imp. Acc: the mean of these per-column scores over the columns with missing entries.
 - RMSE over all missing numerical entries, on the same scale min-max scaled to [0, 1].
@@ -37,6 +37,13 @@ GRIDS = {
 }
 
 
+def r2_score(true: np.ndarray, pred: np.ndarray) -> float:
+    """1 - SSE / SST; 0 when the true values are all equal, where R2 is undefined."""
+    if np.ptp(true) == 0:
+        return 0.0
+    return float(1 - ((pred - true) ** 2).sum() / ((true - true.mean()) ** 2).sum())
+
+
 def imputation_metrics(scn: Scenario, split: str, Z: np.ndarray) -> dict:
     """``Z``: the finalized model-space table of ``split`` (see Scenario.finalize)."""
     s, dn = scn.schema, len(scn.schema.num_cols)
@@ -55,9 +62,8 @@ def imputation_metrics(scn: Scenario, split: str, Z: np.ndarray) -> dict:
             if not mj.any():
                 continue
             t, p = ev_true[mj, j], ev_pred[mj, j]
-            sst = ((t - t.mean()) ** 2).sum()
-            r2 = 1 - ((p - t) ** 2).sum() / sst if sst > 0 else 0.0
-            columns[c] = {"r2": float(r2), "n_missing": int(mj.sum())}
+            r2 = r2_score(t, p)
+            columns[c] = {"r2": r2, "n_missing": int(mj.sum())}
             scores.append(max(r2, 0.0))
             sq_err += (((p - t) / span[j]) ** 2).sum()
             n_num += int(mj.sum())

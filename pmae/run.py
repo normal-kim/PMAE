@@ -51,10 +51,18 @@ def make_imputer(method: str, seed: int = 0, device: str | None = None, **option
         from .baselines.external import MiceForest
 
         return MiceForest(seed=seed)
-    if method in ("em", "gain", "hyperimpute"):
-        from .baselines.external import HyperImputePlugin
+    if method == "gain":
+        from .baselines.external import GAIN
 
-        return HyperImputePlugin(method, seed=seed)
+        return GAIN(seed=seed)
+    if method == "em":
+        from .baselines.external import EM
+
+        return EM()
+    if method == "hyperimpute":
+        from .baselines.external import HyperImpute
+
+        return HyperImpute(seed=seed)
     raise ValueError(f"method must be one of {METHODS}")
 
 

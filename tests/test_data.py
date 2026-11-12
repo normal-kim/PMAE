@@ -7,7 +7,7 @@ from pmae.data.preprocess import OTHER, CatVocab, merge_threshold
 from pmae.data.scenario import build_scenario
 from pmae.data.schema import Schema
 from pmae.data.split import split_indices
-from pmae.evaluate import imputation_metrics
+from pmae.evaluate import imputation_metrics, r2_score
 
 
 def _toy(n=600, seed=0):
@@ -92,6 +92,12 @@ def test_encoder_never_sees_missing_values():
     assert np.array_equal(scn.encoder.transform(train, scn.masks["train"]), scn.X["train"], equal_nan=True)
 
 
+def test_r2_is_zero_when_the_true_values_are_all_equal():
+    t = np.full(50, 0.3)
+    assert r2_score(t, t) == 0.0 and r2_score(t, t + 1) == 0.0  # undefined, not perfect
+    assert r2_score(np.array([0.0, 1.0, 2.0]), np.array([0.0, 1.0, 2.0])) == 1.0
+
+
 def test_metrics_of_true_and_mean_imputation():
     scn = build_scenario("diabetes", "general", seed=0)
     truth = scn.encoder.transform(scn.tables["train"], np.ones_like(scn.masks["train"]))
@@ -99,6 +105,6 @@ def test_metrics_of_true_and_mean_imputation():
     # true values outside the observed train range are clipped by the encoder, so numerical R2 stays below 1
     assert oracle["acc"] == 1.0 and 0.8 < oracle["r2"] < 1.0
     filled = scn.finalize("train", np.where(np.isnan(scn.X["train"]), np.nanmean(scn.X["train"], 0), 0))
-    assert imputation_metrics(scn, "train", filled)["r2"] < 0.05
+    assert imputation_metrics(scn, "train", filled)["r2"] == 0.0  # a constant fill never beats the mean
     table = scn.imputed_table("train", filled)
     assert list(table.columns) == list(scn.schema.columns) and not table.isna().any().any()

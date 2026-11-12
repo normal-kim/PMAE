@@ -60,16 +60,6 @@ def main_table(df: pd.DataFrame) -> str:
     return markdown(_bold_best(t, lower_better=("RMSE ↓", "Utility (rank ↓)")))
 
 
-def wins(df: pd.DataFrame, metric: str, select: str, ours: str = "pmae-mix") -> str:
-    """How often ``ours`` beats, on ``metric``, the baseline with the best mean ``select`` (marked ↑ or ↓)."""
-    baselines = [m for m in df.method.unique() if not m.startswith("pmae")]
-    means = df[df.method.isin(baselines)].groupby("method")[select].mean()
-    best = means.idxmin() if "↓" in select else means.idxmax()
-    wide = df.pivot_table(index=["dataset", "pattern", "seed"], columns="method", values=metric)
-    both = wide[[ours, best]].dropna()
-    return f"on {metric[:-2]} in {int((both[ours] > both[best]).sum())} of {len(both)} runs ({NAMES[best]})"
-
-
 def dataset_tables(df: pd.DataFrame) -> str:
     parts = []
     order = [d for d in DATASETS if d in set(df.dataset)] + sorted(set(df.dataset) - set(DATASETS))
@@ -91,9 +81,6 @@ def main():
     n = df.groupby("method").size()
     print(f"<!-- {len(df)} runs; per method: {n.min()}-{n.max()} -->\n")
     print(main_table(df), "\n")
-    print(f"{NAMES['pmae-mix']} beats the strongest baseline "
-          + " and ".join(wins(df, m, r) for m, r in (("Imp. Acc ↑", "Imp. Acc ↑"), ("Utility ↑", "Utility (rank ↓)")))
-          + ".\n")
     print("<details>\n<summary>Per dataset and pattern</summary>\n")
     print(dataset_tables(df))
     print("\n</details>")
