@@ -113,6 +113,11 @@ Methods are `pmae-mix` and `pmae-trf` (ours), and the baselines `remasker`, `hyp
 
 Partial-A and Partial-B are the Monotone and Quasi-Monotone patterns of the paper's experiments. In this release, Monotone and Quasi-Monotone are updated to the nested structure of their definitions (see Notes on this release below).
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/normal-kim/PMAE/main/assets/patterns_dark.png">
+  <img src="https://raw.githubusercontent.com/normal-kim/PMAE/main/assets/patterns_light.png" alt="Observed masks of 200 Shoppers training rows under the five patterns: Monotone forms a clean staircase, Quasi-Monotone a staircase with a few scattered exceptions, General is scattered over every column, Partial-A leaves some columns complete and scatters the rest, and Partial-B is mostly observed with scattered gaps." width="100%">
+</picture>
+
 ## 📏 Evaluation
 
 Each imputer is fit on the train split. Imp. Acc and RMSE are computed on the held-out validation split, whose rows the imputer never sees during fitting, over the entries the pattern made missing.
@@ -237,7 +242,8 @@ pmae/
 scripts/
 ├── run_all.sh           # all experiments, then the summary tables
 ├── make_tables.py       # the tables above
-└── plot_overview.py     # the figure above
+├── plot_overview.py     # the overview figure
+└── plot_patterns.py     # the patterns figure
 tests/                   # masking, model, data pipeline, metrics
 ```
 
