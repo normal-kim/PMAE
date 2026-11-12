@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the paper below."
+title: "PMAE"
+repository-code: "https://github.com/normal-kim/PMAE"
+license: MIT
+authors:
+  - family-names: Kim
+    given-names: Jungkyu
+  - family-names: Lee
+    given-names: Kibok
+  - family-names: Park
+    given-names: Taeyoung
+preferred-citation:
+  type: conference-paper
+  title: "To Predict or Not to Predict? Proportionally Masked Autoencoders for Tabular Data Imputation"
+  authors:
+    - family-names: Kim
+      given-names: Jungkyu
+    - family-names: Lee
+      given-names: Kibok
+    - family-names: Park
+      given-names: Taeyoung
+  collection-title: "Proceedings of the AAAI Conference on Artificial Intelligence"
+  collection-type: proceedings
+  volume: 39
+  issue: 17
+  start: 17886
+  end: 17894
+  year: 2025
+  doi: "10.1609/aaai.v39i17.33967"
+  conference:
+    name: "AAAI Conference on Artificial Intelligence"
+  url: "https://ojs.aaai.org/index.php/AAAI/article/view/33967"

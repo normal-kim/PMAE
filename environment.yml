@@ -1,0 +1,23 @@
+# Exact environment used for the release runs (CUDA 12.1 wheels).
+#   conda env create -f environment.yml && conda activate pmae
+name: pmae
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu121
+      - torch==2.2.2
+      - numpy==1.26.4
+      - pandas==2.2.3
+      - scipy==1.11.4
+      - scikit-learn==1.6.1
+      - xgboost==2.1.4
+      - xlrd==2.0.2
+      - hyperimpute==0.1.17
+      - miceforest==6.0.5
+      - lightgbm==4.6.0
+      - pytest==8.3.4
+      - matplotlib==3.10.9
+      - -e .
