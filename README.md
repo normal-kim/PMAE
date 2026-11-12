@@ -95,19 +95,23 @@ Datasets are downloaded from UCI on first use (Diabetes ships with scikit-learn)
 # one method on one scenario: impute and evaluate  ->  runs/<dataset>/<pattern>-<mechanism>/seed<s>/<method>.json
 python -m pmae.run --dataset adult --pattern general --method pmae-mix
 
-# all experiments (4 datasets x 3 patterns x 3 seeds x 9 methods) followed by the summary tables
+# all experiments (4 datasets x 5 patterns x 3 seeds x 9 methods) followed by the summary tables
 bash scripts/run_all.sh 0                  # on GPU 0
 bash scripts/run_all.sh 1 adult letter     # or split the datasets across GPUs and servers,
 python scripts/make_tables.py              # then summarize the merged runs/
 ```
 
-Methods are `pmae-mix` and `pmae-trf` (ours), and the baselines `remasker`, `hyperimpute`, `miceforest`, `gain`, `em`, `knn` and `naive`. Missing values follow one of three patterns, with a logistic model of the complete values that depends on the missing columns themselves (MNAR):
+Methods are `pmae-mix` and `pmae-trf` (ours), and the baselines `remasker`, `hyperimpute`, `miceforest`, `gain`, `em`, `knn` and `naive`. Missing values follow one of five patterns, with a logistic model of the complete values that depends on the missing columns themselves (MNAR):
 
-| Pattern | Columns with missing values | Observed probability per column |
-|---|---|---|
-| `monotone` | 60% of the columns | 0.5 |
-| `quasi` | all | 60% of the columns U(0.95, 0.99), the others U(0.2, 0.8) |
-| `general` | all | U(0.2, 0.8) |
+| Pattern | Columns with missing values | Observed probability per column | Structure |
+|---|---|---|---|
+| `monotone` | 60% of the columns | decreasing evenly from 0.8 to 0.2 | nested: a row missing a column also misses every later one |
+| `quasi` | all | 60% of the columns U(0.95, 0.99), the others U(0.2, 0.8) | nested, with a few exceptions |
+| `general` | all | U(0.2, 0.8) | independent across columns |
+| `partial-a` | 60% of the columns | 0.5 | independent across columns |
+| `partial-b` | all | 60% of the columns U(0.95, 0.99), the others U(0.2, 0.8) | independent across columns |
+
+Partial-A and Partial-B are the Monotone and Quasi-Monotone patterns of the paper's experiments. In this release, Monotone and Quasi-Monotone are updated to the nested structure of their definitions (see Notes on this release below).
 
 ## 📏 Evaluation
 
@@ -121,82 +125,82 @@ These are **point accuracy** measures: they compare each imputed value with the 
 
 ## 📊 Results
 
-Diabetes, Shoppers, Adult and Letter; the three patterns (MNAR); three seeds (×100, best in bold). Utility is the rank of each method within a run (1 = best), averaged over the runs.
+Diabetes, Shoppers, Adult and Letter; the five patterns (MNAR); three seeds (×100, best in bold). Utility is the rank of each method within a run (1 = best), averaged over the runs.
 
 Baselines: [ReMasker](https://proceedings.iclr.cc/paper_files/paper/2024/hash/258d234a229d1612a565f9d9a63e3e80-Abstract-Conference.html) (ICLR 2024; [code](https://github.com/tydusky/remasker)), [HyperImpute](https://proceedings.mlr.press/v162/jarrett22a.html) (ICML 2022; [code](https://github.com/vanderschaarlab/hyperimpute)), [MiceForest](https://github.com/AnotherSamWilson/miceforest) (chained equations with LightGBM), [GAIN](https://proceedings.mlr.press/v80/yoon18a.html) (ICML 2018), EM (Dempster et al., 1977), KNN (Troyanskaya et al., 2001) and mean / mode imputation (Naive).
 
 | Method | Imp. Acc ↑ | R² ↑ | Acc ↑ | RMSE ↓ | Utility (rank ↓) |
 |---|---:|---:|---:|---:|---:|
-| PMAE-mix (ours) | **44.8** | **30.1** | **62.2** | **14.0** | **3.3** |
-| PMAE-trf (ours) | 42.0 | 26.9 | 61.1 | 14.1 | 3.7 |
-| ReMasker | 29.6 | 18.8 | 49.8 | 15.6 | 5.2 |
-| HyperImpute | 30.9 | 19.8 | 48.3 | 15.5 | 5.2 |
-| MiceForest | 32.4 | 19.1 | 50.6 | 15.6 | 4.7 |
-| GAIN | 17.7 | 5.5 | 36.2 | 20.5 | 6.7 |
-| EM | 28.1 | 16.7 | 44.5 | 15.7 | 5.4 |
-| KNN | 28.7 | 11.4 | 50.9 | 17.5 | 4.9 |
-| Naive | 18.8 | 0.4 | 43.9 | 19.3 | 5.9 |
+| PMAE-mix (ours) | **42.4** | **26.5** | **61.7** | **14.3** | **3.5** |
+| PMAE-trf (ours) | 39.9 | 23.8 | 60.2 | 14.5 | 3.9 |
+| ReMasker | 28.2 | 16.5 | 48.8 | 15.8 | 5.5 |
+| HyperImpute | 29.8 | 17.1 | 50.6 | 15.5 | 5.0 |
+| MiceForest | 30.7 | 16.9 | 51.9 | 15.7 | 4.9 |
+| GAIN | 16.7 | 4.4 | 36.3 | 20.4 | 6.7 |
+| EM | 27.2 | 15.6 | 45.8 | 15.7 | 5.6 |
+| KNN | 28.0 | 10.8 | 49.6 | 17.3 | 4.7 |
+| Naive | 18.1 | 0.2 | 42.2 | 19.0 | 5.3 |
 
-PMAE-mix (ours) beats the strongest baseline on Imp. Acc in 36 of 36 runs (MiceForest) and on Utility in 25 of 36 runs (MiceForest).
+PMAE-mix (ours) beats the strongest baseline on Imp. Acc in 58 of 60 runs (MiceForest) and on Utility in 38 of 60 runs (KNN).
 
 <details>
 <summary>Per dataset and pattern</summary>
 
 **Diabetes**, Imp. Acc ↑
 
-| Method | Monotone | Quasi-Monotone | General | Mean |
-|---|---:|---:|---:|---:|
-| PMAE-mix (ours) | **29.3** | **35.0** | **24.0** | **29.5** |
-| PMAE-trf (ours) | 15.0 | 34.1 | 16.6 | 21.9 |
-| ReMasker | 3.0 | 18.6 | 8.5 | 10.1 |
-| HyperImpute | 14.3 | 20.7 | 8.6 | 14.5 |
-| MiceForest | 22.2 | 26.3 | 11.8 | 20.1 |
-| GAIN | 11.2 | 15.0 | 9.1 | 11.8 |
-| EM | 26.1 | 32.6 | 14.8 | 24.5 |
-| KNN | 16.2 | 25.2 | 5.8 | 15.7 |
-| Naive | 0.0 | 5.1 | 4.2 | 3.1 |
+| Method | Monotone | Quasi-Monotone | General | Partial-A | Partial-B | Mean |
+|---|---:|---:|---:|---:|---:|---:|
+| PMAE-mix (ours) | **23.2** | 23.4 | **24.0** | **29.3** | **35.0** | **27.0** |
+| PMAE-trf (ours) | 12.9 | 21.8 | 16.6 | 15.0 | 34.1 | 20.1 |
+| ReMasker | 9.5 | 8.8 | 8.5 | 3.0 | 18.6 | 9.7 |
+| HyperImpute | 13.7 | 16.3 | 8.6 | 14.3 | 20.7 | 14.7 |
+| MiceForest | 13.3 | 24.0 | 11.8 | 22.2 | 26.3 | 19.5 |
+| GAIN | 7.7 | 8.8 | 9.1 | 11.2 | 15.0 | 10.4 |
+| EM | 20.2 | **26.1** | 14.8 | 26.1 | 32.6 | 24.0 |
+| KNN | 17.8 | 16.2 | 5.8 | 16.2 | 25.2 | 16.2 |
+| Naive | 0.0 | 1.4 | 4.2 | 0.0 | 5.1 | 2.1 |
 
 **Shoppers**, Imp. Acc ↑
 
-| Method | Monotone | Quasi-Monotone | General | Mean |
-|---|---:|---:|---:|---:|
-| PMAE-mix (ours) | **43.7** | **57.8** | **43.3** | **48.3** |
-| PMAE-trf (ours) | 40.1 | 56.2 | 42.5 | 46.3 |
-| ReMasker | 37.2 | 51.2 | 36.2 | 41.6 |
-| HyperImpute | 38.0 | 50.0 | 37.3 | 41.8 |
-| MiceForest | 32.6 | 48.9 | 29.4 | 37.0 |
-| GAIN | 18.6 | 27.4 | 17.2 | 21.1 |
-| EM | 29.0 | 42.9 | 32.7 | 34.9 |
-| KNN | 28.9 | 40.8 | 18.1 | 29.2 |
-| Naive | 17.5 | 24.7 | 22.5 | 21.6 |
+| Method | Monotone | Quasi-Monotone | General | Partial-A | Partial-B | Mean |
+|---|---:|---:|---:|---:|---:|---:|
+| PMAE-mix (ours) | **34.4** | **44.9** | **43.3** | **43.7** | **57.8** | **44.8** |
+| PMAE-trf (ours) | 33.1 | 44.3 | 42.5 | 40.1 | 56.2 | 43.2 |
+| ReMasker | 30.4 | 36.1 | 36.2 | 37.2 | 51.2 | 38.2 |
+| HyperImpute | 28.3 | 37.3 | 37.3 | 38.0 | 50.0 | 38.2 |
+| MiceForest | 25.2 | 35.1 | 29.4 | 32.6 | 48.9 | 34.3 |
+| GAIN | 15.5 | 18.7 | 17.2 | 18.6 | 27.4 | 19.5 |
+| EM | 27.8 | 34.0 | 32.7 | 29.0 | 42.9 | 33.3 |
+| KNN | 29.0 | 19.7 | 18.1 | 28.9 | 40.8 | 27.3 |
+| Naive | 17.7 | 21.5 | 22.5 | 17.5 | 24.7 | 20.8 |
 
 **Adult**, Imp. Acc ↑
 
-| Method | Monotone | Quasi-Monotone | General | Mean |
-|---|---:|---:|---:|---:|
-| PMAE-mix (ours) | **45.5** | 55.6 | **51.3** | **50.8** |
-| PMAE-trf (ours) | 44.7 | **55.8** | 51.2 | 50.6 |
-| ReMasker | 30.5 | 40.7 | 37.9 | 36.4 |
-| HyperImpute | 32.1 | 46.7 | 33.3 | 37.4 |
-| MiceForest | 35.2 | 49.0 | 39.8 | 41.3 |
-| GAIN | 14.8 | 20.8 | 13.7 | 16.4 |
-| EM | 16.5 | 28.0 | 28.2 | 24.3 |
-| KNN | 26.3 | 37.2 | 25.4 | 29.6 |
-| Naive | 19.6 | 30.1 | 31.0 | 26.9 |
+| Method | Monotone | Quasi-Monotone | General | Partial-A | Partial-B | Mean |
+|---|---:|---:|---:|---:|---:|---:|
+| PMAE-mix (ours) | **38.4** | **47.9** | **51.3** | **45.5** | 55.6 | **47.7** |
+| PMAE-trf (ours) | 38.2 | 47.8 | 51.2 | 44.7 | **55.8** | 47.5 |
+| ReMasker | 26.7 | 36.2 | 37.9 | 30.5 | 40.7 | 34.4 |
+| HyperImpute | 27.2 | 37.2 | 33.3 | 32.1 | 46.7 | 35.3 |
+| MiceForest | 30.7 | 40.4 | 39.8 | 35.2 | 49.0 | 39.0 |
+| GAIN | 15.6 | 21.9 | 13.7 | 14.8 | 20.8 | 17.3 |
+| EM | 17.0 | 26.6 | 28.2 | 16.5 | 28.0 | 23.3 |
+| KNN | 28.5 | 24.9 | 25.4 | 26.3 | 37.2 | 28.5 |
+| Naive | 19.6 | 30.9 | 31.0 | 19.6 | 30.1 | 26.3 |
 
 **Letter**, Imp. Acc ↑
 
-| Method | Monotone | Quasi-Monotone | General | Mean |
-|---|---:|---:|---:|---:|
-| PMAE-mix (ours) | **51.9** | 56.5 | **43.5** | **50.7** |
-| PMAE-trf (ours) | 46.3 | **58.2** | 43.4 | 49.3 |
-| ReMasker | 32.0 | 30.0 | 28.9 | 30.3 |
-| HyperImpute | 25.6 | 39.7 | 25.0 | 30.1 |
-| MiceForest | 31.0 | 37.3 | 25.5 | 31.3 |
-| GAIN | 22.3 | 23.0 | 18.8 | 21.4 |
-| EM | 29.1 | 29.6 | 27.9 | 28.9 |
-| KNN | 45.1 | 54.5 | 21.6 | 40.4 |
-| Naive | 22.3 | 25.2 | 23.6 | 23.7 |
+| Method | Monotone | Quasi-Monotone | General | Partial-A | Partial-B | Mean |
+|---|---:|---:|---:|---:|---:|---:|
+| PMAE-mix (ours) | **48.6** | 48.8 | **43.5** | **51.9** | 56.5 | **49.9** |
+| PMAE-trf (ours) | 44.8 | **51.0** | 43.4 | 46.3 | **58.2** | 48.8 |
+| ReMasker | 31.0 | 29.8 | 28.9 | 32.0 | 30.0 | 30.3 |
+| HyperImpute | 31.0 | 34.3 | 25.0 | 25.6 | 39.7 | 31.1 |
+| MiceForest | 26.9 | 29.8 | 25.5 | 31.0 | 37.3 | 30.1 |
+| GAIN | 15.4 | 19.1 | 18.8 | 22.3 | 23.0 | 19.7 |
+| EM | 27.6 | 27.8 | 27.9 | 29.1 | 29.6 | 28.4 |
+| KNN | 45.1 | 33.3 | 21.6 | 45.1 | 54.5 | 39.9 |
+| Naive | 21.9 | 23.6 | 23.6 | 22.3 | 25.2 | 23.3 |
 
 </details>
 
@@ -222,7 +226,7 @@ pmae/
 ├── data/
 │   ├── datasets.py      # step 1: download and clean the tables
 │   ├── split.py         # step 2: fixed stratified 60/20/20 split
-│   ├── patterns.py      # step 3: Monotone, Quasi-Monotone, General; MNAR, MAR, MCAR
+│   ├── patterns.py      # step 3: Monotone, Quasi-Monotone, General, Partial-A, Partial-B; MNAR, MAR, MCAR
 │   ├── preprocess.py    # step 4: encoders fit on the observed train entries
 │   ├── scenario.py      # steps 2-4 for one scenario, and the map back to data space
 │   └── schema.py        # column roles
@@ -241,13 +245,12 @@ tests/                   # masking, model, data pipeline, metrics
 
 ## 📝 Notes on this release
 
-PMAE-mix and PMAE-trf are updated from the paper's implementation; masking, loss normalization and architectures are unchanged:
+The following updates raise the Imp. Acc of PMAE-mix and PMAE-trf by a few points over the previous implementation; masking, loss normalization and architectures are unchanged:
 
 - Numerical columns are standardized and predicted by a linear head (previously min-max scaled, with a bounded head).
-- Categorical columns are represented by learned category embeddings of fixed norm and trained with a cross-entropy loss divided by the entropy of the column's categories, so that an uninformative prediction incurs the same loss on every column, numerical or categorical, following [CDTD](https://proceedings.iclr.cc/paper_files/paper/2025/hash/61f4e5747b1b753cb35546b15d981f76-Abstract-Conference.html) (ICLR 2025). Previously, category codes were treated as numerical values and trained with a squared error.
-- The learning rate grows with the batch size: 1e-3 × batch size / 64.
+- Categorical columns use learned embeddings and a cross-entropy loss scaled by the column's category entropy, as in [CDTD](https://proceedings.iclr.cc/paper_files/paper/2025/hash/61f4e5747b1b753cb35546b15d981f76-Abstract-Conference.html) (ICLR 2025) (previously integer codes with a squared error).
 
-On Diabetes and Shoppers (three patterns, three seeds) these raise Imp. Acc from 32.7 to 38.9 for PMAE-mix and from 30.4 to 34.1 for PMAE-trf.
+Monotone and Quasi-Monotone are now nested, as in the paper's definitions; the paper's experiments drew each column independently, and those versions are kept as Partial-A and Partial-B.
 
 ## 📖 Citation
 

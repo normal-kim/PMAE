@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pmae"
-version = "0.1.0"
+version = "0.1.1"
 description = "PMAE: proportionally masked autoencoders for tabular data imputation (AAAI 2025)"
 license = "MIT"
 license-files = ["LICENSE"]

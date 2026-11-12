@@ -2,19 +2,29 @@
 
 A pattern sets which feature columns get missing values and the observed probability p_j of each:
 
-- monotone: round(p_col * d) columns (at least one) with p_j = 0.5; the other columns stay complete.
-- quasi:    every column; round(0.6 * d) of them with p_j ~ U(0.95, 0.99), the rest with p_j ~ U(0.2, 0.8).
-- general:  every column, p_j ~ U(0.2, 0.8).
+- monotone: round(p_col * d) columns (at least one), in a random order, with p_j decreasing evenly from 0.8 to 0.2
+            along it (0.5 for a single column); the other columns stay complete. The masks are nested: a row
+            observed in a column is also observed in every column before it.
+- quasi:    every column; round(0.6 * d) of them with p_j ~ U(0.95, 0.99), the rest with p_j ~ U(0.2, 0.8). The
+            masks are nested as in monotone (columns from most to least observed), with exceptions: a row missing
+            in a column is observed in the next one with 0.2 times the probability it would have if observed.
+- general:  every column, p_j ~ U(0.2, 0.8), drawn independently.
+- partial-a: round(p_col * d) columns (at least one) with p_j = 0.5, drawn independently; the other columns stay
+             complete (the Monotone pattern of the paper's experiments).
+- partial-b: the observed probabilities of quasi, drawn independently (the Quasi-Monotone pattern of the paper's
+             experiments).
 
 A mechanism sets how missingness depends on the data. For each column j with missing values,
 P(x_ij observed) = sigmoid(b_j + z_i' w_j), where z_i encodes the complete values of row i
 (quantile-normal numerical, one-hot categorical; encoders fit on the complete train split).
 w_j ~ N(0, I) on the allowed features is rescaled so that z' w_j has unit SD on the train split,
 and b_j is solved so that the mean observed probability on the train split equals p_j.
+For monotone and quasi, this probability is conditional on being observed in the previous column (times the
+return factor when missing there), and b_j is solved for the resulting share of rows observed in column j.
 The validation split uses the same (w_j, b_j). Allowed features:
 
 - mnar: the features of the columns with missing values, column j included.
-- mar:  the features of the complete columns (monotone only).
+- mar:  the features of the complete columns (monotone and partial-a only).
 - mcar: none (w_j = 0).
 """
 from __future__ import annotations
@@ -28,14 +38,16 @@ from sklearn.preprocessing import OneHotEncoder, QuantileTransformer
 from .preprocess import n_quantiles_for
 from .schema import Schema
 
-PATTERNS = ("monotone", "quasi", "general")
+PATTERNS = ("monotone", "quasi", "general", "partial-a", "partial-b")
+P_COL = ("monotone", "partial-a")  # the patterns where only a share p_col of the columns gets missing values
 MECHANISMS = ("mnar", "mar", "mcar")
 MASKED_SPLITS = ("train", "val")  # the test split stays complete
 QUASI_NEAR_COMPLETE = 0.6
+RETURN = {"monotone": 0.0, "quasi": 0.2}  # nested patterns: P(observed after a missing column) / P(after an observed one)
 
 
 def setting_name(pattern: str, mechanism: str, p_col: float = 0.6) -> str:
-    return f"{pattern}{p_col if pattern == 'monotone' else ''}-{mechanism}"
+    return f"{pattern}{p_col if pattern in P_COL else ''}-{mechanism}"
 
 
 def propensity_features(tables: dict[str, pd.DataFrame], schema: Schema) -> tuple[dict[str, np.ndarray], list]:
@@ -60,10 +72,11 @@ def propensity_features(tables: dict[str, pd.DataFrame], schema: Schema) -> tupl
 
 def observed_probabilities(d: int, pattern: str, rng: np.random.Generator, p_col: float = 0.6) -> np.ndarray:
     """p_j for every column (1.0 for columns that stay complete)."""
-    if pattern == "monotone":
+    if pattern in P_COL:
         p = np.ones(d)
-        p[rng.choice(d, max(1, round(p_col * d)), replace=False)] = 0.5
-    elif pattern == "quasi":
+        cols = rng.choice(d, max(1, round(p_col * d)), replace=False)
+        p[cols] = np.linspace(0.8, 0.2, len(cols)) if pattern == "monotone" and len(cols) > 1 else 0.5
+    elif pattern in ("quasi", "partial-b"):
         p = rng.uniform(0.2, 0.8, d)
         near = rng.choice(d, round(QUASI_NEAR_COMPLETE * d), replace=False)
         p[near] = rng.uniform(0.95, 0.99, len(near))
@@ -91,6 +104,9 @@ def make_masks(
     d = len(groups)
     p = observed_probabilities(d, pattern, np.random.default_rng(plan_ss), p_col)
     missing = np.flatnonzero(p < 1)
+    nested = pattern in RETURN
+    if nested:
+        missing = missing[np.argsort(-p[missing], kind="stable")]  # most observed first
     if mechanism == "mar":
         allowed = [j for j in range(d) if p[j] == 1]
         if not allowed:
@@ -100,6 +116,8 @@ def make_masks(
     feats = np.concatenate([groups[j] for j in allowed])
 
     masks = {s: np.ones((len(Z[s]), d), dtype=bool) for s in MASKED_SPLITS}
+    reach = {s: np.ones(len(Z[s])) for s in MASKED_SPLITS}  # nested: P(observed in the previous column)
+    prev = {s: np.ones(len(Z[s]), dtype=bool) for s in MASKED_SPLITS}
     for j in missing:
         if mechanism == "mcar":
             logit = {s: np.zeros(len(Z[s])) for s in MASKED_SPLITS}
@@ -109,9 +127,15 @@ def make_masks(
             sd = logit["train"].std()
             if sd > 0:
                 logit = {s: v / sd for s, v in logit.items()}
-        b = brentq(lambda b: expit(logit["train"] + b).mean() - p[j], -50.0, 50.0, xtol=1e-12)
+        base = {s: reach[s] + RETURN[pattern] * (1 - reach[s]) for s in MASKED_SPLITS} if nested else reach
+        b = brentq(lambda b: (base["train"] * expit(logit["train"] + b)).mean() - p[j], -50.0, 50.0, xtol=1e-12)
         for s in MASKED_SPLITS:
-            masks[s][:, j] = rngs[s].random(len(Z[s])) < expit(logit[s] + b)
+            h = expit(logit[s] + b)
+            if nested:
+                masks[s][:, j] = rngs[s].random(len(Z[s])) < h * np.where(prev[s], 1.0, RETURN[pattern])
+                prev[s], reach[s] = masks[s][:, j], base[s] * h
+            else:
+                masks[s][:, j] = rngs[s].random(len(Z[s])) < h
     if (masks["train"].sum(0) < 2).any():
         raise ValueError("a column has fewer than 2 observed train entries")
     return masks

@@ -20,7 +20,8 @@ NAMES = {"pmae-mix": "PMAE-mix (ours)", "pmae-trf": "PMAE-trf (ours)", "remasker
          "hyperimpute": "HyperImpute", "miceforest": "MiceForest", "gain": "GAIN", "em": "EM", "knn": "KNN",
          "naive": "Naive"}  # row order of the tables
 DATASETS = ("diabetes", "shoppers", "adult", "letter")  # order of the per-dataset tables
-PATTERNS = {"monotone0.6-mnar": "Monotone", "quasi-mnar": "Quasi-Monotone", "general-mnar": "General"}
+PATTERNS = {"monotone0.6-mnar": "Monotone", "quasi-mnar": "Quasi-Monotone", "general-mnar": "General",
+            "partial-a0.6-mnar": "Partial-A", "partial-b-mnar": "Partial-B"}
 METRICS = {"Imp. Acc ↑": "imp_acc", "R² ↑": "r2", "Acc ↑": "acc", "RMSE ↓": "rmse"}
 
 
@@ -60,7 +61,7 @@ def main_table(df: pd.DataFrame) -> str:
 
 
 def wins(df: pd.DataFrame, metric: str, select: str, ours: str = "pmae-mix") -> str:
-    """How often ``ours`` beats, on ``metric``, the baseline with the best mean ``select`` (a column marked with ↑ or ↓)."""
+    """How often ``ours`` beats, on ``metric``, the baseline with the best mean ``select`` (marked ↑ or ↓)."""
     baselines = [m for m in df.method.unique() if not m.startswith("pmae")]
     means = df[df.method.isin(baselines)].groupby("method")[select].mean()
     best = means.idxmin() if "↓" in select else means.idxmax()

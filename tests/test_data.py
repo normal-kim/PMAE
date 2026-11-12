@@ -32,16 +32,33 @@ def test_split_is_stratified_and_disjoint():
     assert y[s["test"]].mean() == pytest.approx(0.2)
 
 
-def test_monotone_keeps_columns_complete():
-    m = _masks("monotone")["train"]
+@pytest.mark.parametrize("mechanism", ["mnar", "mar", "mcar"])
+def test_monotone_is_nested(mechanism):
+    for m in _masks("monotone", mechanism).values():
+        share = m.mean(0)
+        order = np.argsort(-share)
+        assert (share == 1).sum() == 4 - round(0.6 * 4)  # the other columns stay complete
+        assert all((m[:, order[k]] <= m[:, order[k - 1]]).all() for k in range(1, 4))  # observed only if observed before
+        assert np.allclose(share[order[2:]], [0.8, 0.2], atol=0.06)  # the missing-prone columns
+
+
+def test_partial_a_keeps_columns_complete():
+    m = _masks("partial-a")["train"]
     missing = 1 - m.mean(0)
     assert (missing == 0).sum() == 4 - round(0.6 * 4)
     assert np.allclose(missing[missing > 0], 0.5, atol=0.06)
 
 
-@pytest.mark.parametrize("pattern", ["quasi", "general"])
+@pytest.mark.parametrize("pattern", ["quasi", "general", "partial-b"])
 def test_every_column_gets_missing_values(pattern):
     assert (_masks(pattern)["train"].mean(0) < 1).all()
+
+
+def test_quasi_is_nested_with_a_few_exceptions():
+    m = _masks("quasi")["train"]
+    order = np.argsort(-m.mean(0))
+    returns = np.diff(m[:, order].astype(int), axis=1) > 0  # observed right after a missing column
+    assert 0 < returns.sum() / m.sum() < 0.1
 
 
 def test_mar_needs_complete_columns():

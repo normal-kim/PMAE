@@ -2,5 +2,5 @@
 from .imputer import PMAE
 from .masking import mask_rate
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = ["PMAE", "mask_rate"]

@@ -131,7 +131,7 @@ def main():
     ap.add_argument("--method", required=True, choices=METHODS)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--mechanism", default="mnar", choices=MECHANISMS)
-    ap.add_argument("--p_col", type=float, default=0.6, help="share of columns with missing values (monotone)")
+    ap.add_argument("--p_col", type=float, default=0.6, help="share of columns with missing values (monotone, partial-a)")
     ap.add_argument("--out", default="runs")
     ap.add_argument("--device", default=None)
     ap.add_argument("--set", action="append", metavar="KEY=VALUE", help=f"model option: {', '.join(OPTIONS)}")
